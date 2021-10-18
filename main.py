@@ -88,6 +88,7 @@ def apply_tag(target_path: str, rule_path: str, tags: dict) -> Tuple[bool, List[
             jsonschema.validate(instance=frozen, schema=CONFIG_SCHEMA)
         except:
             frozen = dict(BASE_CONFIG)
+            frozen['affected-files'] = []
             state = False
         else:
             if frozen['rule-at'] != rule_path:
