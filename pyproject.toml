@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "archivefreezer"
+version = "0.1.0"
+description = "Automatically tags file on S3 to be freezed"
+authors = ["Sangyu Lee <me@shibuya-rin.moe>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+boto3 = "^1.18.62"
+jsonschema = "^4.1.0"
+python-telegram-bot = "^13.7"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
