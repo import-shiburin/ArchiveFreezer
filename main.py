@@ -18,7 +18,7 @@ CONFIG_SCHEMA = {
     'properties': {
         'rule-at': {
             'type': 'object'
-        }
+        },
         'freezefile-tags': {
             'type': 'object'
         },
