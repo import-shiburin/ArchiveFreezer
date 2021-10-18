@@ -66,7 +66,7 @@ def apply_tag(target_path: str, tags: dict) -> Tuple[bool, List[str], List[str]]
         path = directories.pop()
         # If this directory contains freezefile
         # Process this directory recursively
-        if path == target_path:
+        if path != target_path:
             freezefiles = [x for x in Path(path).glob(f'{FREEZEFILE_PREFIX}*')]
             if len(freezefiles) != 0:
                 parsed_tag = parse_freezefile(freezefiles[0].name)
@@ -146,7 +146,7 @@ if __name__ == '__main__':
         state, _, _ = apply_tag(tgt_folder, tag)
         telegram.Bot(TELEGRAM_BOT_TOKEN).send_message(
             chat_id=TELEGRAM_CHAT_ID,
-            text='Freezing path' + (tgt_folder if len(tgt_folder) <= 100 else tgt_folder[:97] + '...') + ('Succeeded' if state else 'Failed')
+            text='Freezing path ' + (tgt_folder if len(tgt_folder) <= 4000 else tgt_folder[:3997] + '...') + ' ' + ('Succeeded' if state else 'Failed')
         )
 
     sys.exit(0)
