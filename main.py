@@ -137,7 +137,8 @@ def apply_tag(target_path: str, rule_path: str, tags: dict) -> Tuple[bool, List[
             frozen['rule-at'] = rule_path.replace(S3_MOUNT_PATH, '')
             frozen['applied-tags'] = tags
             frozen['freezefile-tags'] = FREEZEFILE_TAGS
-            json.dump(frozen, conf_file, indent=4, sort_keys=True)
+            if len(frozen['affected-files']) != 0:
+                json.dump(frozen, conf_file, indent=4, sort_keys=True)
 
     return state, processed_files, failed_files
 
