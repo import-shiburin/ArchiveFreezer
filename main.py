@@ -107,7 +107,7 @@ def apply_tag(target_path: str, tags: dict) -> Tuple[bool, List[str], List[str]]
             if using_tag == old_tag and file in frozen['affected-files']:
                 continue
 
-            file_s3_key = file_abs_path.replace(S3_MOUNT_PATH, '/')
+            file_s3_key = file_abs_path.replace(S3_MOUNT_PATH + '/', '')
 
             try:
                 s3.put_object_tagging(Bucket=S3_BUCKET_NAME, Key=file_s3_key, Tagging={
