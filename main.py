@@ -16,6 +16,9 @@ FREEZEFILE_TAGS = {
 CONFIG_SCHEMA = {
     'type': 'object',
     'properties': {
+        'rule-at': {
+            'type': 'object'
+        }
         'freezefile-tags': {
             'type': 'object'
         },
@@ -29,9 +32,10 @@ CONFIG_SCHEMA = {
             }
         }
     },
-    'required': ['applied-tags', 'affected-files', 'freezefile-tags']
+    'required': ['rule-at', 'applied-tags', 'affected-files', 'freezefile-tags']
 }
 BASE_CONFIG = {
+    'rule-at': '',
     'applied-tags': {},
     'affected-files': [],
     'freezefile-tags': {}
@@ -51,7 +55,7 @@ def parse_freezefile(freezefile: str) -> Dict[str, str]:
     }
 
 
-def apply_tag(target_path: str, tags: dict) -> Tuple[bool, List[str], List[str]]:
+def apply_tag(target_path: str, rule_path: str, tags: dict) -> Tuple[bool, List[str], List[str]]:
     directories = [target_path]
     processed_files = []
     failed_files = []
@@ -70,7 +74,7 @@ def apply_tag(target_path: str, tags: dict) -> Tuple[bool, List[str], List[str]]
             freezefiles = [x for x in Path(path).glob(f'{FREEZEFILE_PREFIX}*')]
             if len(freezefiles) != 0:
                 parsed_tag = parse_freezefile(freezefiles[0].name)
-                ret = apply_tag(path, parsed_tag)
+                ret = apply_tag(path, rule_path, parsed_tag)
                 state = state and ret[0]
                 processed_files += ret[1]
                 failed_files += ret[2]
@@ -84,6 +88,11 @@ def apply_tag(target_path: str, tags: dict) -> Tuple[bool, List[str], List[str]]
             jsonschema.validate(instance=frozen, schema=CONFIG_SCHEMA)
         except:
             frozen = dict(BASE_CONFIG)
+            state = False
+        else:
+            if frozen['rule-at'] != rule_path:
+                # Do not apply
+                return True, [], []
 
         for file in os.listdir(path):
             # Ignore hidden files
@@ -124,6 +133,7 @@ def apply_tag(target_path: str, tags: dict) -> Tuple[bool, List[str], List[str]]
                     frozen['affected-files'].append(file)
 
         with open(os.path.join(path, FROZENFILE), 'wt') as conf_file:
+            frozen['rule-at'] = rule_path
             frozen['applied-tags'] = tags
             frozen['freezefile-tags'] = FREEZEFILE_TAGS
             json.dump(frozen, conf_file, indent=4, sort_keys=True)
@@ -143,7 +153,7 @@ if __name__ == '__main__':
     for tgt_folder in tgt_folders:
         freezefile = [x.name for x in Path(tgt_folder).glob(f'{FREEZEFILE_PREFIX}*')][0]
         tag = parse_freezefile(freezefile)
-        state, _, _ = apply_tag(tgt_folder, tag)
+        state, _, _ = apply_tag(tgt_folder, tgt_folder, tag)
         os.remove(os.path.join(tgt_folder, freezefile))
         telegram.Bot(TELEGRAM_BOT_TOKEN).send_message(
             chat_id=TELEGRAM_CHAT_ID,
