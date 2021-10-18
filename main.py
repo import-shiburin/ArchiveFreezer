@@ -78,7 +78,8 @@ def apply_tag(target_path: str, rule_path: str, tags: dict) -> Tuple[bool, List[
                 state = state and ret[0]
                 processed_files += ret[1]
                 failed_files += ret[2]
-                os.remove(os.path.join(path, freezefiles[0].name))
+                if state is True:
+                    os.remove(os.path.join(path, freezefiles[0].name))
                 continue
 
         # Parse frozen metadata
@@ -156,7 +157,8 @@ if __name__ == '__main__':
         freezefile = [x.name for x in Path(tgt_folder).glob(f'{FREEZEFILE_PREFIX}*')][0]
         tag = parse_freezefile(freezefile)
         state, _, _ = apply_tag(tgt_folder, tgt_folder, tag)
-        os.remove(os.path.join(tgt_folder, freezefile))
+        if state is True:
+            os.remove(os.path.join(tgt_folder, freezefile))
         telegram.Bot(TELEGRAM_BOT_TOKEN).send_message(
             chat_id=TELEGRAM_CHAT_ID,
             text='Freezing path ' + (tgt_folder if len(tgt_folder) <= 4000 else tgt_folder[:3997] + '...') + ' ' + ('Succeeded' if state else 'Failed')
