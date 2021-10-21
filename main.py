@@ -6,11 +6,15 @@ import json
 import jsonschema
 import boto3
 import telegram
+import urllib.parse
 
 FREEZEFILE_PREFIX = '.freeze.'
 FROZENFILE = '.frozen'
 FREEZEFILE_TAGS = {
     'storage-class': 'infrequent-access'
+}
+FROZEN_IDENTIFIER_TAGS = {
+    'frozen': 'true'
 }
 
 CONFIG_SCHEMA = {
@@ -90,9 +94,8 @@ def apply_tag(target_path: str, rule_path: str, tags: dict) -> Tuple[bool, List[
         except:
             frozen = dict(BASE_CONFIG)
             frozen['affected-files'] = []
-            state = False
         else:
-            if frozen['rule-at'] != rule_path:
+            if frozen['rule-at'] != rule_path.replace(S3_MOUNT_PATH, ''):
                 # Do not apply
                 return True, [], []
 
@@ -107,7 +110,7 @@ def apply_tag(target_path: str, rule_path: str, tags: dict) -> Tuple[bool, List[
                 directories.append(file_abs_path)
                 continue
 
-            if file.startswith(FREEZEFILE_PREFIX) or file == FROZENFILE:
+            if file == FROZENFILE:
                 # Shouldn't be frozen to Glacier, using pre-defined tags
                 using_tag = FREEZEFILE_TAGS
                 old_tag = frozen['freezefile-tags']
@@ -123,12 +126,7 @@ def apply_tag(target_path: str, rule_path: str, tags: dict) -> Tuple[bool, List[
             try:
                 s3.put_object_tagging(Bucket=S3_BUCKET_NAME, Key=file_s3_key, Tagging={
                     'TagSet':  [
-                        {
-                            'Key': 'frozen',
-                            'Value': 'true'
-                        }
-                    ] + [
-                        {'Key': k, 'Value': v} for k, v in tags.items()
+                        {'Key': k, 'Value': v} for k, v in dict(using_tag, **FROZEN_IDENTIFIER_TAGS).items()
                     ]
                 })
             except:
@@ -139,11 +137,22 @@ def apply_tag(target_path: str, rule_path: str, tags: dict) -> Tuple[bool, List[
                 if using_tag == tags:
                     frozen['affected-files'].append(file)
 
-        with open(os.path.join(path, FROZENFILE), 'wt') as conf_file:
-            frozen['rule-at'] = rule_path.replace(S3_MOUNT_PATH, '')
-            frozen['applied-tags'] = tags
-            frozen['freezefile-tags'] = FREEZEFILE_TAGS
-            json.dump(frozen, conf_file, indent=4, sort_keys=True)
+
+        frozen['rule-at'] = rule_path.replace(S3_MOUNT_PATH, '')
+        frozen['applied-tags'] = tags
+        frozen['freezefile-tags'] = FREEZEFILE_TAGS
+        conf_bin = json.dumps(frozen, indent=4, sort_keys=True).encode('utf-8')
+        if not os.path.exists(os.path.join(path, FROZENFILE)):
+            s3.put_object(
+                Body=conf_bin,
+                Bucket=S3_BUCKET_NAME,
+                Key=os.path.join(path, FROZENFILE).replace(S3_MOUNT_PATH + '/', ''),
+                Tagging=urllib.parse.urlencode(
+                    dict(FREEZEFILE_TAGS, **FROZEN_IDENTIFIER_TAGS)
+                )
+            )
+        with open(os.path.join(path, FROZENFILE), 'wb') as conf_file:
+            conf_file.write(conf_bin)
 
     return state, processed_files, failed_files
 
@@ -160,7 +169,10 @@ if __name__ == '__main__':
     for tgt_folder in tgt_folders:
         freezefile = [x.name for x in Path(tgt_folder).glob(f'{FREEZEFILE_PREFIX}*')][0]
         tag = parse_freezefile(freezefile)
-        state, _, _ = apply_tag(tgt_folder, tgt_folder, tag)
+        try:
+            state, _, _ = apply_tag(tgt_folder, tgt_folder, tag)
+        except:
+            state = False
         if state is True:
             os.remove(os.path.join(tgt_folder, freezefile))
         telegram.Bot(TELEGRAM_BOT_TOKEN).send_message(
