@@ -1,12 +1,13 @@
-import sys
-from pathlib import Path
-import os
-from typing import List, Dict, Tuple
 import json
-import jsonschema
-import boto3
-import telegram
+import os
+import sys
 import urllib.parse
+from pathlib import Path
+from typing import List, Dict, Tuple
+
+import boto3
+import jsonschema
+import telegram
 
 FREEZEFILE_PREFIX = '.freeze.'
 FROZENFILE = '.frozen'
@@ -44,7 +45,6 @@ BASE_CONFIG = {
     'affected-files': [],
     'freezefile-tags': {}
 }
-
 
 S3_BUCKET_NAME = os.environ.get('S3_BUCKET_NAME')
 S3_MOUNT_PATH = str(Path(os.environ.get('S3_MOUNT_PATH')).resolve())
@@ -125,7 +125,7 @@ def apply_tag(target_path: str, rule_path: str, tags: dict) -> Tuple[bool, List[
 
             try:
                 s3.put_object_tagging(Bucket=S3_BUCKET_NAME, Key=file_s3_key, Tagging={
-                    'TagSet':  [
+                    'TagSet': [
                         {'Key': k, 'Value': v} for k, v in dict(using_tag, **FROZEN_IDENTIFIER_TAGS).items()
                     ]
                 })
@@ -136,7 +136,6 @@ def apply_tag(target_path: str, rule_path: str, tags: dict) -> Tuple[bool, List[
                 processed_files.append(file_abs_path)
                 if using_tag == tags:
                     frozen['affected-files'].append(file)
-
 
         frozen['rule-at'] = rule_path.replace(S3_MOUNT_PATH, '')
         frozen['applied-tags'] = tags
@@ -155,6 +154,7 @@ def apply_tag(target_path: str, rule_path: str, tags: dict) -> Tuple[bool, List[
             conf_file.write(conf_bin)
 
     return state, processed_files, failed_files
+
 
 if __name__ == '__main__':
     freeze_paths = Path(S3_MOUNT_PATH).rglob(f'{FREEZEFILE_PREFIX}*')
@@ -177,7 +177,8 @@ if __name__ == '__main__':
             os.remove(os.path.join(tgt_folder, freezefile))
         telegram.Bot(TELEGRAM_BOT_TOKEN).send_message(
             chat_id=TELEGRAM_CHAT_ID,
-            text='Freezing path ' + (tgt_folder if len(tgt_folder) <= 4000 else tgt_folder[:3997] + '...') + ' ' + ('Succeeded' if state else 'Failed')
+            text='Freezing path ' + (tgt_folder if len(tgt_folder) <= 4000 else tgt_folder[:3997] + '...') + ' ' + (
+                'Succeeded' if state else 'Failed')
         )
 
     sys.exit(0)
