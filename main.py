@@ -98,7 +98,7 @@ def apply_tag(target_path: str, rule_path: str, tags: dict) -> Tuple[bool, List[
 
         for file in os.listdir(path):
             # Ignore hidden files
-            if file.startswith('.'):
+            if file.startswith('.') and file != FROZENFILE:
                 continue
 
             file_abs_path = str(Path(os.path.join(path, file)).resolve())
@@ -122,7 +122,12 @@ def apply_tag(target_path: str, rule_path: str, tags: dict) -> Tuple[bool, List[
 
             try:
                 s3.put_object_tagging(Bucket=S3_BUCKET_NAME, Key=file_s3_key, Tagging={
-                    'TagSet': [
+                    'TagSet':  [
+                        {
+                            'Key': 'frozen',
+                            'Value': 'true'
+                        }
+                    ] + [
                         {'Key': k, 'Value': v} for k, v in tags.items()
                     ]
                 })
@@ -138,8 +143,7 @@ def apply_tag(target_path: str, rule_path: str, tags: dict) -> Tuple[bool, List[
             frozen['rule-at'] = rule_path.replace(S3_MOUNT_PATH, '')
             frozen['applied-tags'] = tags
             frozen['freezefile-tags'] = FREEZEFILE_TAGS
-            if len(frozen['affected-files']) != 0:
-                json.dump(frozen, conf_file, indent=4, sort_keys=True)
+            json.dump(frozen, conf_file, indent=4, sort_keys=True)
 
     return state, processed_files, failed_files
 
